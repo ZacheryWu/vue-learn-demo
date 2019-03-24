@@ -28,6 +28,9 @@
 				this.defineReactive(prop, data[prop])
 			})
 		}
+		/**
+		* 劫持到vue实例上的某个属性（当前的实现方法只会改变实例上的属性值，而实际中的data的值并不会同步改变）
+		*/
 		defineReactive(prop, value) {
 			let dep = new Dep();
 			Object.defineProperty(this, prop, {
@@ -88,14 +91,22 @@
 			this.node = node;
 			this.name = name;
 			this.vm = vm;
+			//标记自身，方便Dep收集依赖
 			Dep.target = this;
 			this.getValue();
+			//收集完依赖后将target置为空
 			Dep.target = null;
 		}
+		/**
+		* 更新视图
+		*/
 		update() {
 			this.getValue();
 			this.node.nodeValue = this.value;
 		}
+		/**
+		* 触发访问器中的get，从而向Dep中添加watcher，达到依赖收集的目的。
+		*/
 		getValue() {
 			this.value = this.vm[this.name];
 		}
