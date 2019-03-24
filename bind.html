@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<meta http-equiv="X-UA-Compatible" content="ie=edge">
+	<title>Document</title>
+</head>
+<body>
+	<div id="app">
+		<input type="text" v-model="text">
+		{{text}}
+	</div>
+</body>
+<script>
+	class Vue {
+		constructor(options) {
+			this.el = options.el;
+			this.data = options.data;
+			this.obverse(this.data);
+			let root = document.getElementById(this.el);
+			let frag = this.node2Fragment(root);
+			root.appendChild(frag);
+		}
+
+		obverse(data) {
+			Object.keys(data).forEach((prop) => {
+				this.defineReactive(prop, data[prop])
+			})
+		}
+		defineReactive(prop, value) {
+			let dep = new Dep();
+			Object.defineProperty(this, prop, {
+				get: function() {
+					if(Dep.target) {
+						dep.depend();
+					}
+					return value
+				},
+				set: function(newVal) {
+					if(newVal === value) return;
+					value = newVal;
+					dep.notify();
+				}
+			})
+		}
+		/**
+		* 把dom转化documentFragment,以提高性能
+		*/
+		node2Fragment(node) {
+			let retFrag = document.createDocumentFragment();
+			let child;
+			while(child = node.firstChild) {
+				this.compile(child);
+				retFrag.appendChild(child);
+			}
+			return retFrag;
+		}
+		/**
+		* 对dom节点进行解析，把data中的数据替换上去
+		*/
+		compile(node) {
+			let reg = /\{\{(.*)\}\}/
+			if(node.nodeType === Node.ELEMENT_NODE) {
+				let attrs = Array.from(node.attributes);
+				attrs.forEach((attr, index, attrs) => {
+					if(attr.nodeName == 'v-model') {
+						node.addEventListener('input', (e) => {
+							this[attr.nodeValue] = e.target.value;
+						})
+						node.value = this.data[attr.nodeValue];
+					}
+				})
+			} else if(node.nodeType === Node.TEXT_NODE) {
+				if(reg.test(node.nodeValue)) {
+					let dataKey = RegExp.$1;
+					dataKey = dataKey.trim();
+					let dataValue = this.data[dataKey];
+					node.nodeValue = dataValue;
+					new Watcher(node, dataKey, this);
+				}
+			}
+		}
+	}
+
+	class Watcher {
+		constructor(node, name, vm) {
+			this.node = node;
+			this.name = name;
+			this.vm = vm;
+			Dep.target = this;
+			this.getValue();
+			Dep.target = null;
+		}
+		update() {
+			this.getValue();
+			this.node.nodeValue = this.value;
+		}
+		getValue() {
+			this.value = this.vm[this.name];
+		}
+	}
+
+	class Dep {
+		constructor() {
+			this.subs = [];
+		}
+		notify() {
+			this.subs.forEach(sub => {
+				sub.update();
+			})
+		}
+		depend() {
+			this.subs.push(Dep.target);
+		}
+	}
+	Dep.target = null;
+
+	let vm = new Vue({
+		el:'app',
+		data: {
+			text: 'hello Vue!'
+		}
+	})
+
+</script>
+</html>
